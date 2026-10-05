@@ -130,9 +130,13 @@ for cust, size in sorted(active_custs.items(), key=lambda x: -x[1]):
 tot_rev = sum(r["rev"] for r in item_month)
 tot_cost = sum(r["cost"] for r in item_month)
 
+now = datetime.datetime.now().astimezone()
 payload = {
     "customer_name": cfg["customer_name"],
-    "generated_at": datetime.datetime.now().strftime("%B %d, %Y"),
+    "generated_at": now.strftime("%b %-d, %Y at %-I:%M %p"),
+    "generated_at_iso": now.isoformat(),
+    "refresh_cadence": cfg.get("refresh_cadence", ""),
+    "stale_after_days": cfg.get("stale_after_days", 2),
     "as_of": today.isoformat(),
     "months_cust": months_cust, "months_item": months_item, "all_months": all_months,
     "cust_month": cust_month, "item_month": item_month, "custgp_month": custgp_month,
@@ -157,6 +161,7 @@ print(f"cust_month={len(cust_month)} item_month={len(item_month)} custgp_month={
 print(f"total invoice sales=${round(tot_sales):,}  customers={custs}  months {all_months[0]}..{all_months[-1]}")
 print(f"GP: rev=${round(tot_rev):,} cost=${round(tot_cost):,} GP={payload['gp_overall']['gp_pct']}%  uncat={uncat}%")
 print(f"promo N={N} hero={len(promo_by_item)}")
-assert abs(tot_sales-527701) < 300, f"sales drift {tot_sales}"
-assert 0 < payload['gp_overall']['gp_pct'] < 40
+assert tot_sales > 400000, f"sales too low, suspect bad pull: {tot_sales}"
+assert custs > 50, f"too few customers, suspect bad pull: {custs}"
+assert 0 < payload['gp_overall']['gp_pct'] < 40, f"GP% out of range: {payload['gp_overall']['gp_pct']}"
 print("OK -> data.json")

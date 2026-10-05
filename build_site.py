@@ -51,6 +51,12 @@ header h1{font-size:19px;margin:0}header .sub{color:var(--muted);font-size:13px;
 .preset{font-size:12px;padding:6px 11px;border:1px solid var(--line);border-radius:999px;background:var(--bg);color:var(--muted);cursor:pointer;font-weight:600}
 .preset.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .rangenote{font-size:12px;color:var(--muted);margin-left:auto}
+#freshness{margin:16px 0 0;border-radius:10px;padding:11px 14px;font-size:13px;font-weight:600;display:none}
+#freshness.show{display:block}
+#freshness.ok{background:var(--chip);color:var(--muted)}
+#freshness.stale{background:#fdecea;color:#b02a1a;border:1px solid #f3b4ab}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) #freshness.stale{background:#3a1b16;color:#f0a99c;border-color:#5e2a20}}
+:root[data-theme="dark"] #freshness.stale{background:#3a1b16;color:#f0a99c;border-color:#5e2a20}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:16px 0}
 .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .kpi .v{font-size:23px;font-weight:700}.kpi .l{font-size:12px;color:var(--muted);margin-top:2px}
@@ -96,10 +102,11 @@ canvas{max-width:100%}
 
 <div id="app" style="display:none">
 <header><div class="wrap row">
-  <div><h1>__CUSTOMER__ · Reporting</h1><div class="sub">Powered by Pepper · updated <span id="gen"></span></div></div>
+  <div><h1>__CUSTOMER__ · Reporting</h1><div class="sub">Powered by Pepper · last updated <span id="gen"></span></div></div>
   <button id="logout">Lock</button>
 </div></header>
 <div class="wrap">
+  <div id="freshness"></div>
   <div class="filterbar">
     <div><label>From</label><br><input type="month" id="from"></div>
     <div><label>To</label><br><input type="month" id="to"></div>
@@ -148,8 +155,22 @@ $("#logout").onclick=()=>{try{sessionStorage.removeItem("ays_pw");}catch(e){}loc
 const TABS=[["overview","Overview"],["sales","Sales by Customer"],["cases","Cases by Customer"],
   ["reps","Sales by Rep"],["cats","Categories"],["gp","Gross Profit"],["promo","Promo Opportunities"]];
 
+function updateFreshness(){
+  const el=$("#freshness"); if(!el||!DATA.generated_at_iso)return;
+  const gen=new Date(DATA.generated_at_iso), now=new Date();
+  const days=Math.floor((now-gen)/86400000);
+  const rel=days<=0?"today":(days===1?"yesterday":days+" days ago");
+  const thresh=DATA.stale_after_days||2;
+  const cadence=DATA.refresh_cadence?(" It normally refreshes "+DATA.refresh_cadence+", so this likely means the refresh did not run."):"";
+  if(days>thresh){el.className="show stale";
+    el.textContent="⚠️ This data may be out of date. Last updated "+DATA.generated_at+" ("+rel+")."+cadence;}
+  else{el.className="show ok";
+    el.textContent="✓ Last updated "+DATA.generated_at+" ("+rel+").";}
+}
 function boot(){
   $("#gen").textContent=DATA.generated_at;
+  updateFreshness();
+  setInterval(updateFreshness, 1800000);
   const m=DATA.all_months, first=m[0], last=m[m.length-1];
   $("#from").min=first;$("#from").max=last;$("#to").min=first;$("#to").max=last;
   RF=first;RT=last;$("#from").value=RF;$("#to").value=RT;
